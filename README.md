@@ -60,7 +60,6 @@ FinVisor/
 │   ├── LSTM.py            # 模型训练
 │   ├── utils.py           # 工具函数（如数据处理、特征工程等）
 │
-├── requirements.txt       # 依赖库
 ├── README.md              # 项目说明文档
 └── main.py                # 主程序入口
 ```
