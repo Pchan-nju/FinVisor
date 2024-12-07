@@ -6,6 +6,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 
+
 # 超参数设置
 DAYS_FOR_TRAIN = 30  # 使用多少天的数据来预测未来的价格
 HIDDEN_SIZE = 64  # LSTM 隐藏单元数
@@ -14,16 +15,31 @@ EPOCHS = 100  # 训练轮次
 LEARNING_RATE = 0.001  # 学习率
 BATCH_SIZE = 32  # 批量大小
 
+
 # 定义 LSTM 模型
 class LSTMModel(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, output_size=1):
+    def __init__(self, input_size, hidden_size, num_layers, output_size=1, dropout_rate=0.2):
         super(LSTMModel, self).__init__()
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
+
+        # LSTM 层，加入 Dropout
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, dropout=dropout_rate)
+
+        # 全连接层，加入 Dropout
         self.fc = nn.Linear(hidden_size, output_size)
 
+        # Dropout 层
+        self.dropout = nn.Dropout(dropout_rate)
+
     def forward(self, x):
-        out, _ = self.lstm(x)
-        out = self.fc(out[:, -1, :])  # 取最后一个时间步的输出
+        # 经过 LSTM 层
+        out, (hn, cn) = self.lstm(x)
+
+        # 只取最后一个时间步的输出，进行 Dropout
+        out = out[:, -1, :]
+        out = self.dropout(out)
+
+        # 经过全连接层
+        out = self.fc(out)
         return out
 
 
@@ -57,13 +73,14 @@ def preprocess_data(data, days_for_train):
     return X, y, scaler
 
 
-
 # 模型训练函数
-def train_model(model, train_loader, criterion, optimizer, epochs):
+def train_model(model, train_loader, criterion, optimizer, epochs, device):
     """
     训练 LSTM 模型
     """
     model.train()
+    print("training on", device)
+    criterion = criterion.to(device)
     for epoch in range(epochs):
         for X_batch, y_batch in train_loader:
             optimizer.zero_grad()
@@ -73,13 +90,21 @@ def train_model(model, train_loader, criterion, optimizer, epochs):
             optimizer.step()
 
         if (epoch + 1) % 10 == 0:
-            print(f"Epoch [{epoch + 1}/{epochs}], Loss: {loss.item():.4f}")
+            print(f"Epoch [{epoch + 1}/{epochs}], Loss: {loss.item():.10f}")
 
     return model
 
 
 # 主程序
-def run_LSTM(data_file_path):
+def run_LSTM(data_file_path, stock_id):
+    """
+    Args:
+        data_file_path: 数据文件的路径
+        stock_id: 股票的编号 比如000031.SZ
+
+    Returns:
+
+    """
     try:
         data = pd.read_csv(data_file_path)
     except FileNotFoundError:
@@ -137,10 +162,12 @@ def run_LSTM(data_file_path):
 
     # 训练模型
     print("Training the LSTM model...")
-    model = train_model(model, train_loader, criterion, optimizer, EPOCHS)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = train_model(model, train_loader, criterion, optimizer, EPOCHS, device)
 
     # 保存完整模型到本地
-    model_save_path = "model/LSTM"
+    stock_id = stock_id.replace('.', '_')
+    model_save_path = "model/LSTM" + "_" + stock_id + ".pth"
     torch.save(model.state_dict(), model_save_path)
     print(f"模型已保存到 {model_save_path}")
 
@@ -172,8 +199,5 @@ def run_LSTM(data_file_path):
     plt.title("Stock Price Prediction")
     plt.xlabel("Time")
     plt.ylabel("Price")
+    plt.savefig("results/images/" + stock_id + ".jpg")
     plt.show()
-
-
-if __name__ == "__main__":
-    run_LSTM("../data/stock_data.csv")

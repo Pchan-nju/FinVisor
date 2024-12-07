@@ -1,6 +1,7 @@
 import tushare as ts
 import os  # 用于创建文件夹
 
+
 def data_update(folder_path):
     # 设置你的 tushare token（可以去 tushare 官网注册并获取）
     ts.set_token('637be502ff3ef07449e718eba3432df68ee919e5fa1fd23febd2e316')
@@ -20,7 +21,7 @@ def data_update(folder_path):
     # 遍历股票代码并获取数据
     for stock_code in stock_codes:
         # 获取A股市场的股票数据
-        data = pro.daily(ts_code=stock_code, start_date='20210101', end_date='20211231')
+        data = pro.daily(ts_code=stock_code, start_date='20130101', end_date='20231231')
 
         # 打印每个股票的前几行数据，确认是否正确
         print(f"Fetching data for {stock_code}...")
